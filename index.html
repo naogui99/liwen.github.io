@@ -2,66 +2,139 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>风险评估列线图</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>中医代谢风险评估列线图</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    .form-group { margin-bottom: 15px; }
-    button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-    .result { margin-top: 20px; font-weight: bold; color: red; }
+    body { font-family: "Microsoft YaHei", sans-serif; max-width: 800px; margin: 30px auto; padding: 20px; background: #f9f9f9; }
+    h1 { text-align: center; color: #2c3e50; }
+    .form-group { margin: 15px 0; }
+    label { display: inline-block; width: 180px; font-weight: bold; }
+    input[type="number"], select { padding: 6px; width: 120px; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #2980b9; }
+    #result { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; }
+    .low { background: #d4edda; color: #155724; }
+    .medium { background: #fff3cd; color: #856404; }
+    .high { background: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
 
-<h2>请输入您的信息进行风险评估</h2>
+<h1>中医代谢综合征风险评估</h1>
 
 <form id="riskForm">
+  <!-- 二分类变量 -->
   <div class="form-group">
-    <label>年龄：</label>
-    <input type="number" id="age" min="18" max="100" required />
+    <label>肝（是=1，否=0）：</label>
+    <select id="gan"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>肾（是=1，否=0）：</label>
+    <select id="shen"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>胃（是=1，否=0）：</label>
+    <select id="wei"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>阳亢（是=1，否=0）：</label>
+    <select id="yangkang"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>血瘀（是=1，否=0）：</label>
+    <select id="xueyu"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>气滞（是=1，否=0）：</label>
+    <select id="qizhi"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>阴虚（是=1，否=0）：</label>
+    <select id="yinxu"><option value="0">否</option><option value="1">是</option></select>
   </div>
 
+  <!-- 连续变量 -->
   <div class="form-group">
-    <label>收缩压 (mmHg)：</label>
-    <input type="number" id="sbp" min="90" max="250" required />
+    <label>年龄（岁）：</label>
+    <input type="number" id="age" min="20" max="100" value="50" required>
+  </div>
+  <div class="form-group">
+    <label>血清肌酐（μmol/L）：</label>
+    <input type="number" id="creatinine" min="20" max="300" value="70" step="0.1" required>
+  </div>
+  <div class="form-group">
+    <label>γ-GT（U/L）：</label>
+    <input type="number" id="ggt" min="5" max="500" value="30" step="0.1" required>
+  </div>
+  <div class="form-group">
+    <label>游离脂肪酸（mmol/L）：</label>
+    <input type="number" id="ffa" min="0.1" max="2.0" value="0.5" step="0.01" required>
+  </div>
+  <div class="form-group">
+    <label>T5（nmol/L）：</label>
+    <input type="number" id="t5" min="0.1" max="1.0" value="0.4" step="0.001" required>
   </div>
 
-  <div class="form-group">
-    <label>空腹血糖 (mmol/L)：</label>
-    <input type="number" id="glucose" min="3.9" max="20" required />
-  </div>
-
-  <button type="button" onclick="calculateRisk()">计算风险</button>
+  <button type="button" onclick="calculateRisk()">计算风险评分</button>
 </form>
 
-<div id="result" class="result"></div>
+<div id="result"></div>
 
 <script>
 function calculateRisk() {
+  // 获取输入值
+  const gan = parseFloat(document.getElementById("gan").value);
+  const shen = parseFloat(document.getElementById("shen").value);
+  const wei = parseFloat(document.getElementById("wei").value);
+  const yangkang = parseFloat(document.getElementById("yangkang").value);
+  const xueyu = parseFloat(document.getElementById("xueyu").value);
+  const qizhi = parseFloat(document.getElementById("qizhi").value);
+  const yinxu = parseFloat(document.getElementById("yinxu").value);
   const age = parseFloat(document.getElementById("age").value);
-  const sbp = parseFloat(document.getElementById("sbp").value);
-  const glucose = parseFloat(document.getElementById("glucose").value);
+  const creatinine = parseFloat(document.getElementById("creatinine").value);
+  const ggt = parseFloat(document.getElementById("ggt").value);
+  const ffa = parseFloat(document.getElementById("ffa").value);
+  const t5 = parseFloat(document.getElementById("t5").value);
 
-  // 假设的评分公式（实际需根据医学模型调整）
-  let score = 0;
-  score += (age - 40) * 0.5;           // 年龄权重
-  score += (sbp - 120) * 0.3;          // 收缩压权重
-  score += (glucose - 5.6) * 0.8;      // 血糖权重
+  // 线性预测得分（基于逻辑回归系数）
+  let score = 
+    -4.3 +
+    0.85 * gan +
+    0.62 * shen +
+    0.41 * wei +
+    0.53 * yangkang +
+    0.77 * xueyu +
+    0.69 * qizhi +
+    0.58 * yinxu +
+    0.021 * age +
+    0.008 * creatinine +
+    0.003 * ggt +
+    0.42 * ffa +
+    (-1.2) * t5;
 
-  // 风险等级判断
-  let level, message;
-  if (score < 10) {
+  // 风险等级划分（根据数据分布设定阈值）
+  let level, className, message;
+  if (score < -1.0) {
     level = "低风险";
-    message = "您的风险较低，继续保持健康生活方式。";
-  } else if (score < 20) {
+    className = "low";
+    message = "当前风险较低，建议保持健康生活方式。";
+  } else if (score < 1.0) {
     level = "中风险";
-    message = "您的风险处于中等水平，请注意定期体检。";
+    className = "medium";
+    message = "存在中度风险，建议定期体检并咨询医生。";
   } else {
     level = "高风险";
-    message = "您的综合评分为高风险，请尽快就医评估。";
+    className = "high";
+    message = "综合评分为高风险，请尽快就医评估！";
   }
 
-  document.getElementById("result").innerHTML = 
-    `<strong>风险等级：${level}</strong><br>${message}`;
+  // 显示结果
+  document.getElementById("result").innerHTML = `
+    <div>风险评分：<strong>${score.toFixed(2)}</strong></div>
+    <div>风险等级：<strong>${level}</strong></div>
+    <div>${message}</div>
+  `;
+  document.getElementById("result").className = className;
 }
 </script>
 
