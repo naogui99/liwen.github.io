@@ -4,18 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>高血压风险等级预测中医诊断模型</title>
+  <!-- 引入 Chart.js 和 jsPDF -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
-    body { font-family: "Microsoft YaHei", sans-serif; max-width: 800px; margin: 30px auto; padding: 20px; background: #f9f9f9; }
-    h1 { text-align: center; color: #2c3e50; }
-    .form-group { margin: 15px 0; }
-    label { display: inline-block; width: 180px; font-weight: bold; }
+    body { font-family: "Microsoft YaHei", sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #f9f9f9; }
+    h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+    .form-group { margin: 12px 0; display: flex; align-items: center; }
+    label { width: 180px; font-weight: bold; }
     input[type="number"], select { padding: 6px; width: 120px; border: 1px solid #ccc; border-radius: 4px; }
-    button { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+    button { background: #3498db; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 5px; }
     button:hover { background: #2980b9; }
-    #result { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; }
+    #result { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; display: none; }
     .low { background: #d4edda; color: #155724; }
     .medium { background: #fff3cd; color: #856404; }
     .high { background: #f8d7da; color: #721c24; }
+    #chartContainer { margin-top: 20px; display: none; }
+    #exportSection { text-align: center; margin-top: 20px; display: none; }
+    canvas { max-width: 100%; }
   </style>
 </head>
 <body>
@@ -79,62 +86,137 @@
 </form>
 
 <div id="result"></div>
+<div id="chartContainer"><canvas id="contributionChart"></canvas></div>
+<div id="exportSection">
+  <button onclick="exportPDF()">导出PDF报告</button>
+</div>
 
 <script>
+let myChart = null;
+
 function calculateRisk() {
   // 获取输入值
-  const gan = parseFloat(document.getElementById("gan").value);
-  const shen = parseFloat(document.getElementById("shen").value);
-  const wei = parseFloat(document.getElementById("wei").value);
-  const yangkang = parseFloat(document.getElementById("yangkang").value);
-  const xueyu = parseFloat(document.getElementById("xueyu").value);
-  const qizhi = parseFloat(document.getElementById("qizhi").value);
-  const yinxu = parseFloat(document.getElementById("yinxu").value);
-  const age = parseFloat(document.getElementById("age").value);
-  const creatinine = parseFloat(document.getElementById("creatinine").value);
-  const ggt = parseFloat(document.getElementById("ggt").value);
-  const ffa = parseFloat(document.getElementById("ffa").value);
-  const t5 = parseFloat(document.getElementById("t5").value);
+  const inputs = {
+    gan: parseFloat(document.getElementById("gan").value),
+    shen: parseFloat(document.getElementById("shen").value),
+    wei: parseFloat(document.getElementById("wei").value),
+    yangkang: parseFloat(document.getElementById("yangkang").value),
+    xueyu: parseFloat(document.getElementById("xueyu").value),
+    qizhi: parseFloat(document.getElementById("qizhi").value),
+    yinxu: parseFloat(document.getElementById("yinxu").value),
+    age: parseFloat(document.getElementById("age").value),
+    creatinine: parseFloat(document.getElementById("creatinine").value),
+    ggt: parseFloat(document.getElementById("ggt").value),
+    ffa: parseFloat(document.getElementById("ffa").value),
+    t5: parseFloat(document.getElementById("t5").value)
+  };
 
-  // 线性预测得分（基于逻辑回归系数）
-  let score = 
-    -4.3 +
-    0.85 * gan +
-    0.62 * shen +
-    0.41 * wei +
-    0.53 * yangkang +
-    0.77 * xueyu +
-    0.69 * qizhi +
-    0.58 * yinxu +
-    0.021 * age +
-    0.008 * creatinine +
-    0.003 * ggt +
-    0.42 * ffa +
-    (-1.2) * t5;
+  // 系数
+  const coeffs = {
+    intercept: -4.3,
+    gan: 0.85,
+    shen: 0.62,
+    wei: 0.41,
+    yangkang: 0.53,
+    xueyu: 0.77,
+    qizhi: 0.69,
+    yinxu: 0.58,
+    age: 0.021,
+    creatinine: 0.008,
+    ggt: 0.003,
+    ffa: 0.42,
+    t5: -1.2
+  };
 
-  // 风险等级划分（根据数据分布设定阈值）
+  // 计算总分
+  let total = coeffs.intercept;
+  const contributions = {};
+  for (let key in inputs) {
+    contributions[key] = coeffs[key] * inputs[key];
+    total += contributions[key];
+  }
+
+  // 风险等级
   let level, className, message;
-  if (score < -1.0) {
-    level = "低风险";
-    className = "low";
+  if (total < -1.0) {
+    level = "低风险"; className = "low";
     message = "当前风险较低，建议保持健康生活方式。";
-  } else if (score < 1.0) {
-    level = "中风险";
-    className = "medium";
+  } else if (total < 1.0) {
+    level = "中风险"; className = "medium";
     message = "存在中度风险，建议定期体检并咨询医生。";
   } else {
-    level = "高风险";
-    className = "high";
+    level = "高风险"; className = "high";
     message = "综合评分为高风险，请尽快就医评估！";
   }
 
   // 显示结果
   document.getElementById("result").innerHTML = `
-    <div>风险评分：<strong>${score.toFixed(2)}</strong></div>
+    <div>风险评分：<strong>${total.toFixed(2)}</strong></div>
     <div>风险等级：<strong>${level}</strong></div>
     <div>${message}</div>
   `;
   document.getElementById("result").className = className;
+  document.getElementById("result").style.display = "block";
+
+  // 准备图表数据
+  const labels = ["肝", "肾", "胃", "阳亢", "血瘀", "气滞", "阴虚", "年龄", "肌酐", "γ-GT", "游离脂肪酸", "T5"];
+  const values = [
+    contributions.gan, contributions.shen, contributions.wei, contributions.yangkang,
+    contributions.xueyu, contributions.qizhi, contributions.yinxu,
+    contributions.age, contributions.creatinine, contributions.ggt,
+    contributions.ffa, contributions.t5
+  ];
+
+  // 渲染图表
+  const ctx = document.getElementById('contributionChart').getContext('2d');
+  if (myChart) myChart.destroy();
+  myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '各因素对风险评分的贡献',
+        data: values,
+        backgroundColor: values.map(v => v > 0 ? '#e74c3c' : '#3498db')
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: '贡献分' } }
+      }
+    }
+  });
+
+  document.getElementById("chartContainer").style.display = "block";
+  document.getElementById("exportSection").style.display = "block";
+}
+
+// 导出 PDF
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const element = document.createElement('div');
+  element.innerHTML = `
+    <h2 style="text-align:center;">高血压风险评估报告</h2>
+    ${document.getElementById("result").outerHTML}
+    <p style="text-align:center;margin-top:20px;">注：本报告基于中医证候与生化指标联合预测模型生成。</p>
+  `;
+  element.style.padding = "20px";
+  element.style.fontFamily = "'Microsoft YaHei', sans-serif";
+  document.body.appendChild(element);
+
+  const canvas = await html2canvas(element);
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const width = pdf.internal.pageSize.getWidth();
+  const height = (canvas.height * width) / canvas.width;
+  pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+  pdf.save('高血压风险评估报告.pdf');
+
+  document.body.removeChild(element);
 }
 </script>
 
