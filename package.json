@@ -1,0 +1,16 @@
+{
+  "name": "risk-tool",
+  "version": "1.0.0",
+  "description": "高血压风险评估工具 - 支持姓名/编号输入、变量截断、历史记录和PDF导出",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "echo 'This app runs on Vercel Serverless Functions, no start command needed.'"
+  },
+  "keywords": ["hypertension", "risk-assessment", "supabase", "vercel", "medical"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "engines": {
+    "node": "> =18"
+  }
+}

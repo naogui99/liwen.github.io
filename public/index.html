@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>高血压风险等级预测中医诊断模型</title>
+  <!-- 引入 Chart.js 和 jsPDF -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: "Microsoft YaHei", sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f9f9f9;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    label {
+      width: 180px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    input[type="text"], input[type="number"], select {
+      padding: 6px;
+      width: 120px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background: #3498db;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      display: none;
+    }
+    .low { background: #d4edda; color: #155724; }
+    .medium { background: #fff3cd; color: #856404; }
+    .high { background: #f8d7da; color: #721c24; }
+    #chartContainer {
+      margin-top: 20px;
+      display: none;
+    }
+    #exportSection {
+      text-align: center;
+      margin-top: 20px;
+      display: none;
+    }
+    canvas {
+      max-width: 100%;
+      margin-top: 10px;
+    }
+    ul {
+      text-align: left;
+      padding-left: 20px;
+      margin: 10px 0;
+    }
+    h3 {
+      margin-top: 15px;
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+
+<h1>高血压风险等级预测中医诊断模型</h1>
+
+<form id="riskForm">
+  <!-- 新增：姓名和编号 -->
+  <div class="form-group">
+    <label>姓名：</label>
+    <input type="text" id="name" placeholder="请输入姓名" style="width: 200px;">
+  </div>
+  <div class="form-group">
+    <label>编号：</label>
+    <input type="text" id="number" placeholder="如病历号" style="width: 200px;">
+  </div>
+
+  <!-- 二分类变量 -->
+  <div class="form-group">
+    <label>肝（是=1，否=0）：</label>
+    <select id="gan"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>肾（是=1，否=0）：</label>
+    <select id="shen"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>胃（是=1，否=0）：</label>
+    <select id="wei"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>阳亢（是=1，否=0）：</label>
+    <select id="yangkang"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>血瘀（是=1，否=0）：</label>
+    <select id="xueyu"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>气滞（是=1，否=0）：</label>
+    <select id="qizhi"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+  <div class="form-group">
+    <label>阴虚（是=1，否=0）：</label>
+    <select id="yinxu"><option value="0">否</option><option value="1">是</option></select>
+  </div>
+
+  <!-- 连续变量 -->
+  <div class="form-group">
+    <label>年龄（岁）：</label>
+    <input type="number" id="age" min="20" max="100" value="50" required>
+  </div>
+  <div class="form-group">
+    <label>血清肌酐（μmol/L）：</label>
+    <input type="number" id="creatinine" min="20" max="300" value="70" step="0.1" required>
+  </div>
+  <div class="form-group">
+    <label>γ-GT（U/L）：</label>
+    <input type="number" id="ggt" min="5" max="500" value="30" step="0.1" required>
+  </div>
+  <div class="form-group">
+    <label>游离脂肪酸（mmol/L）：</label>
+    <input type="number" id="ffa" min="0.1" max="2.0" value="0.5" step="0.01" required>
+  </div>
+  <div class="form-group">
+    <label>T5（nmol/L）：</label>
+    <input type="number" id="t5" min="0.1" max="1.0" value="0.4" step="0.001" required>
+  </div>
+
+  <button type="button" onclick="calculateRisk()">计算风险评分</button>
+  <button type="button" onclick="showHistory()">查看历史记录</button>
+</form>
+
+<div id="result"></div>
+<div id="chartContainer"><canvas id="contributionChart"></canvas></div>
+<div id="exportSection">
+  <button onclick="exportPDF()">导出PDF报告</button>
+</div>
+
+<script>
+let myChart = null;
+
+function calculateRisk() {
+  // === 获取姓名和编号（不参与计算）===
+  const name = document.getElementById('name').value.trim();
+  const number = document.getElementById('number').value.trim();
+  if (!name) {
+    alert('请输入姓名');
+    return;
+  }
+
+  // === 1. 读取原始输入值 ===
+  const rawInputs = {
+    gan: parseFloat(document.getElementById("gan").value),
+    shen: parseFloat(document.getElementById("shen").value),
+    wei: parseFloat(document.getElementById("wei").value),
+    yangkang: parseFloat(document.getElementById("yangkang").value),
+    xueyu: parseFloat(document.getElementById("xueyu").value),
+    qizhi: parseFloat(document.getElementById("qizhi").value),
+    yinxu: parseFloat(document.getElementById("yinxu").value),
+    age: parseFloat(document.getElementById("age").value),
+    creatinine: parseFloat(document.getElementById("creatinine").value),
+    ggt: parseFloat(document.getElementById("ggt").value),
+    ffa: parseFloat(document.getElementById("ffa").value),
+    t5: parseFloat(document.getElementById("t5").value)
+  };
+
+  // === 2. 应用上限截断（关键逻辑）===
+  const inputs = {
+    ...rawInputs,
+    creatinine: Math.min(rawInputs.creatinine, 400),
+    ggt: Math.min(rawInputs.ggt, 200),
+    ffa: Math.min(rawInputs.ffa, 2.4),
+    t5: Math.min(rawInputs.t5, 1.0)
+  };
+
+  const coeffs = {
+    intercept: -4.3,
+    gan: 0.85,
+    shen: 0.62,
+    wei: 0.41,
+    yangkang: 0.53,
+    xueyu: 0.77,
+    qizhi: 0.69,
+    yinxu: 0.58,
+    age: 0.021,
+    creatinine: 0.008,
+    ggt: 0.003,
+    ffa: 0.42,
+    t5: -1.2
+  };
+
+  let total = coeffs.intercept;
+  const contributions = {};
+  for (let key in inputs) {
+    contributions[key] = coeffs[key] * inputs[key];
+    total += contributions[key];
+  }
+
+  let level, className, message, advice;
+  if (total < -1.0) {
+    level = "低风险";
+    className = "low";
+    message = "当前高血压风险较低。";
+    advice = `
+      <h3>✅ 健康管理建议（低风险）</h3>
+      <ul>
+        <li>保持规律作息，避免熬夜，顺应四时养生。</li>
+        <li>饮食清淡，少盐少油，多食新鲜蔬果。</li>
+        <li>每日适度运动（如太极拳、八段锦、散步）30分钟。</li>
+        <li>调畅情志，避免长期精神紧张或情绪波动。</li>
+        <li>每年体检一次，关注血压、血脂、肝肾功能。</li>
+      </ul>
+    `;
+  } else if (total < 1.0) {
+    level = "中风险";
+    className = "medium";
+    message = "存在中度高血压风险，需引起重视。";
+    advice = `
+      <h3>⚠️ 健康管理建议（中风险）</h3>
+      <ul>
+        <li>严格限盐（每日&lt;5克），减少加工食品摄入。</li>
+        <li>针对证候调理：如见“肝阳上亢”，可饮菊花决明子茶；“阴虚”者可服枸杞麦冬粥。</li>
+        <li>坚持每日有氧运动（快走、游泳）≥30分钟，每周5天。</li>
+        <li>监测家庭血压（早晚各一次），记录变化。</li>
+        <li>建议每3-6个月就诊中医科，进行体质辨识与调方。</li>
+      </ul>
+    `;
+  } else {
+    level = "高风险";
+    className = "high";
+    message = "综合评分为高风险，请尽快就医评估！";
+    advice = `
+      <h3>🚨 健康管理建议（高风险）</h3>
+      <ul>
+        <li><strong>立即就诊心内科或中医内科</strong>，评估是否需药物干预。</li>
+        <li>严格遵医嘱服药，不可自行停药或更改剂量。</li>
+        <li>中医辨证施治：若属“肝阳上亢”，治宜平肝潜阳；“痰瘀互结”者，当化痰祛瘀通络。</li>
+        <li>绝对戒烟限酒，避免剧烈情绪波动。</li>
+        <li>每日监测血压并记录，复诊时提供给医生参考。</li>
+        <li>避免突然用力、屏气、寒冷刺激等诱发因素。</li>
+      </ul>
+    `;
+  }
+
+  // === 生成截断警告提示 ===
+  let warnings = [];
+  if (rawInputs.creatinine > 400) warnings.push("血清肌酐已按上限400计算");
+  if (rawInputs.ggt > 200) warnings.push("γ-GT已按上限200计算");
+  if (rawInputs.ffa > 2.4) warnings.push("游离脂肪酸已按上限2.4计算");
+  if (rawInputs.t5 > 1.0) warnings.push("T5已按上限1.0计算");
+  const warningHtml = warnings.length > 0 
+    ? `<p style="color:#e67e22; font-size:0.95em; margin:8px 0;">⚠️ ${warnings.join('；')}</p>` 
+    : '';
+
+  const resultHtml = `
+    <div>姓名：<strong>${name}</strong> ${number ? `（编号：${number}）` : ''}</div>
+    <div>风险评分：<strong>${total.toFixed(2)}</strong></div>
+    <div>风险等级：<strong>${level}</strong></div>
+    <div>${message}</div>
+    ${warningHtml}
+    <div style="margin-top:15px; text-align:left;">${advice}</div>
+  `;
+  document.getElementById("result").innerHTML = resultHtml;
+  document.getElementById("result").className = className;
+  document.getElementById("result").style.display = "block";
+
+  const labels = ["肝", "肾", "胃", "阳亢", "血瘀", "气滞", "阴虚", "年龄", "肌酐", "γ-GT", "游离脂肪酸", "T5"];
+  const values = [
+    contributions.gan, contributions.shen, contributions.wei, contributions.yangkang,
+    contributions.xueyu, contributions.qizhi, contributions.yinxu,
+    contributions.age, contributions.creatinine, contributions.ggt,
+    contributions.ffa, contributions.t5
+  ];
+
+  const ctx = document.getElementById('contributionChart').getContext('2d');
+  if (myChart) myChart.destroy();
+  myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '各因素对风险评分的贡献',
+        data: values,
+        backgroundColor: values.map(v => v > 0 ? '#e74c3c' : '#3498db')
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: '贡献分' } }
+      }
+    }
+  });
+
+  document.getElementById("chartContainer").style.display = "block";
+  document.getElementById("exportSection").style.display = "block";
+
+  // ✅ 保存到后端（包含姓名和编号）
+  saveToHistory({
+    name: name,
+    number: number,
+    inputs: inputs,
+    rawInputs: rawInputs, // 可选：保存原始值用于审计
+    total: total,
+    level: level,
+    resultHtml: resultHtml,
+    contributions: contributions
+  });
+}
+
+// ========== 后端交互函数 ==========
+async function saveToHistory(record) {
+  try {
+    const response = await fetch('/api/history', { // ← 改为相对路径，支持线上部署
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record)
+    });
+    if (!response.ok) throw new Error('保存失败');
+    console.log('✅ 评估记录已保存');
+  } catch (err) {
+    console.warn('⚠️ 未连接到服务器，仅本地显示');
+  }
+}
+
+async function showHistory(page = 1) {
+  try {
+    const response = await fetch(`/api/history?page=${page}&limit=10`); // ← 相对路径
+    if (!response.ok) throw new Error('获取失败');
+    const { records, totalPages } = await response.json();
+
+    let listHtml = '<h3>历史评估记录</h3>';
+    if (records.length === 0) {
+      listHtml += '<p>暂无记录</p>';
+    } else {
+      records.forEach(rec => {
+        const time = new Date(rec.timestamp).toLocaleString();
+        const displayName = rec.name || '未命名';
+        const displayNumber = rec.number ? `（编号：${rec.number}）` : '';
+        listHtml += `
+          <div style="border:1px solid #ddd; padding:12px; margin:10px 0; border-radius:4px;">
+            <div><strong>${displayName}${displayNumber} | ${rec.level} | ${time}</strong></div>
+            <div>评分: ${typeof rec.total === 'number' ? rec.total.toFixed(2) : 'N/A'}</div>
+            <button onclick="loadRecord('${rec._id}')" style="margin:5px;">加载</button>
+            <button onclick="deleteRecord('${rec._id}')" style="margin:5px;background:#e74c3c;">删除</button>
+          </div>
+        `;
+      });
+
+      let pagination = '';
+      for (let i = 1; i <= totalPages; i++) {
+        pagination += `<button onclick="showHistory(${i})" style="margin:3px;padding:4px;">${i}</button>`;
+      }
+      listHtml += `<div style="margin-top:15px;">${pagination}</div>`;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'historyModal';
+    modal.innerHTML = `
+      <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;justify-content:center;align-items:center;">
+        <div style="background:white;padding:20px;width:90%;max-width:600px;max-height:80vh;overflow:auto;border-radius:8px;">
+          ${listHtml}
+          <button onclick="document.getElementById('historyModal').remove()" style="margin-top:15px;">关闭</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } catch (error) {
+    alert('❌ 无法连接服务器，请确保后端正在运行（node server.js）');
+  }
+}
+
+async function loadRecord(id) {
+  try {
+    const response = await fetch(`/api/history/${id}`); // ← 相对路径
+    if (!response.ok) throw new Error('加载失败');
+    const record = await response.json();
+
+    // 回填姓名和编号
+    if (record.name) document.getElementById('name').value = record.name;
+    if (record.number) document.getElementById('number').value = record.number;
+
+    // 回填其他字段
+    const inputs = record.inputs || record.rawInputs || {};
+    ['gan','shen','wei','yangkang','xueyu','qizhi','yinxu','age','creatinine','ggt','ffa','t5'].forEach(key => {
+      const el = document.getElementById(key);
+      if (el && inputs[key] !== undefined) el.value = inputs[key];
+    });
+
+    calculateRisk(); // 重新计算
+
+    const modal = document.getElementById('historyModal');
+    if (modal) modal.remove();
+  } catch (error) {
+    alert('❌ 加载失败');
+  }
+}
+
+async function deleteRecord(id) {
+  if (!confirm('确定删除此评估记录？')) return;
+  try {
+    const response = await fetch(`/api/history/${id}`, { method: 'DELETE' }); // ← 相对路径
+    if (!response.ok) throw new Error('删除失败');
+    const modal = document.getElementById('historyModal');
+    if (modal) modal.remove();
+    showHistory();
+  } catch (error) {
+    alert('❌ 删除失败');
+  }
+}
+
+// ========== PDF 导出 ==========
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const element = document.createElement('div');
+  element.innerHTML = `
+    <h2 style="text-align:center;font-size:20px;">高血压风险评估报告</h2>
+    ${document.getElementById("result").outerHTML}
+    <p style="text-align:center;margin-top:20px;font-size:12px;color:#555;">
+      注：本报告基于中医证候与生化指标联合预测模型生成。
+    </p>
+  `;
+  element.style.padding = "20px";
+  element.style.fontFamily = "'Microsoft YaHei', sans-serif";
+  element.style.width = "210mm";
+  document.body.appendChild(element);
+
+  const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const width = pdf.internal.pageSize.getWidth();
+  const height = (canvas.height * width) / canvas.width;
+  pdf.addImage(imgData, 'PNG', 0, 0, width, Math.min(height, 297));
+  pdf.save('高血压风险评估报告.pdf');
+
+  document.body.removeChild(element);
+}
+</script>
+
+</body>
+</html>
