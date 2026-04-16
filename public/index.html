@@ -1,221 +1,435 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>高血压风险等级预测中医诊断模型</title>
-  <!-- 引入 Chart.js 和 jsPDF -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <style>
-    body {
-      font-family: "Microsoft YaHei", sans-serif;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 20px;
-      background: #f9f9f9;
-      line-height: 1.6;
-    }
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-      margin-bottom: 20px;
-    }
-    .form-group {
-      margin: 12px 0;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    label {
-      width: 180px;
-      font-weight: bold;
-      margin-right: 10px;
-    }
-    input[type="text"], input[type="number"], select {
-      padding: 6px;
-      width: 120px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      background: #3498db;
-      color: white;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin: 10px 5px;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #2980b9;
-    }
-    #result {
-      margin-top: 20px;
-      padding: 15px;
-      border-radius: 6px;
-      font-size: 18px;
-      font-weight: bold;
-      text-align: center;
-      display: none;
-    }
-    .low { background: #d4edda; color: #155724; }
-    .medium { background: #fff3cd; color: #856404; }
-    .high { background: #f8d7da; color: #721c24; }
-    #chartContainer {
-      margin-top: 20px;
-      display: none;
-    }
-    #exportSection {
-      text-align: center;
-      margin-top: 20px;
-      display: none;
-    }
-    canvas {
-      max-width: 100%;
-      margin-top: 10px;
-    }
-    ul {
-      text-align: left;
-      padding-left: 20px;
-      margin: 10px 0;
-    }
-    h3 {
-      margin-top: 15px;
-      color: #2c3e50;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>高血压风险等级预测中医诊断模型</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+body { font-family: "Microsoft YaHei", sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #f9f9f9; line-height: 1.6; }
+h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+.form-group { margin: 12px 0; display: flex; align-items: center; flex-wrap: wrap; }
+label { width: 180px; font-weight: bold; margin-right: 10px; }
+input[type="text"], input[type="number"], input[type="date"], select { padding: 6px; width: 120px; border: 1px solid #ccc; border-radius: 4px; }
+button { background: #3498db; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin: 10px 5px; font-size: 16px; }
+button:hover { background: #2980b9; }
+#result { margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 18px; font-weight: bold; text-align: center; display: none; }
+.low { background: #d4edda; color: #155724; }
+.medium { background: #fff3cd; color: #856404; }
+.high { background: #f8d7da; color: #721c24; }
+#chartContainer { margin-top: 20px; display: none; }
+#historyChartContainer {
+  margin-top:20px;
+  display:none;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+#historyChart {
+  width: 1200px !important;
+  height: 360px !important;
+}
+#exportSection { text-align: center; margin-top: 20px; display: none; }
+canvas { max-width: 100%; margin-top: 10px; }
+ul { text-align: left; padding-left: 20px; margin: 10px 0; }
+h3 { margin-top: 15px; color: #2c3e50; }
+nav { background: #2c3e50; padding: 12px; text-align: center; margin-bottom: 20px; border-radius: 6px; }
+nav a { color: white; margin: 0 15px; text-decoration: underline; font-weight: bold; }
+nav a:hover { color: #f1c40f; }
+.module { display: none; }
+.module.active { display: block; }
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+}
+.modal-content {
+  background-color: #fefefe;
+  margin: 5% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 600px;
+  border-radius: 8px;
+  position: relative;
+}
+.close-modal {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.close-modal:hover,
+.close-modal:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+.detail-table th, .detail-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.detail-table th {
+  background-color: #f2f2f2;
+}
+</style>
 </head>
 <body>
 
-<h1>高血压风险等级预测中医诊断模型</h1>
+<div id="detailModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <h2 id="modalTitle">评估详情</h2>
+    <div id="modalContent"></div>
+  </div>
+</div>
 
-<form id="riskForm">
-  <!-- 新增：姓名和编号 -->
-  <div class="form-group">
-    <label>姓名：</label>
-    <input type="text" id="name" placeholder="请输入姓名" style="width: 200px;">
-  </div>
-  <div class="form-group">
-    <label>编号：</label>
-    <input type="text" id="number" placeholder="如病历号" style="width: 200px;">
-  </div>
+<nav>
+  <a href="#" onclick="showSection('assessment')">风险评估</a>
+  <a href="#" onclick="showSection('self')">自我管理</a>
+  <a href="#" onclick="showSection('resources')">健康资源</a>
+</nav>
 
-  <!-- 二分类变量 -->
-  <div class="form-group">
-    <label>肝（是=1，否=0）：</label>
-    <select id="gan"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>肾（是=1，否=0）：</label>
-    <select id="shen"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>胃（是=1，否=0）：</label>
-    <select id="wei"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>阳亢（是=1，否=0）：</label>
-    <select id="yangkang"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>血瘀（是=1，否=0）：</label>
-    <select id="xueyu"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>气滞（是=1，否=0）：</label>
-    <select id="qizhi"><option value="0">否</option><option value="1">是</option></select>
-  </div>
-  <div class="form-group">
-    <label>阴虚（是=1，否=0）：</label>
-    <select id="yinxu"><option value="0">否</option><option value="1">是</option></select>
-  </div>
+<div id="assessment" class="module active">
+  <h1>高血压风险等级预测中医诊断模型</h1>
+  <form id="riskForm">
+    <fieldset style="border: 2px solid #3498db; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #f8fbff;">
+      <legend style="font-weight: bold; color: #2980b9; font-size: 16px;">👤 基础信息</legend>
+      <div class="form-group">
+        <label>姓名：</label>
+        <input type="text" id="name" placeholder="请输入姓名" style="width: 200px;">
+      </div>
+      <div class="form-group">
+        <label>编号：</label>
+        <input type="text" id="recordId" placeholder="可选" style="width: 200px;">
+      </div>
+      <div class="form-group">
+        <label>年龄（岁）：</label>
+        <input type="number" id="age" min="18" max="100" value="18" step="1" required style="width: 120px;">
+      </div>
+    </fieldset>
 
-  <!-- 连续变量 -->
-  <div class="form-group">
-    <label>年龄（岁）：</label>
-    <input type="number" id="age" min="20" max="100" value="50" required>
-  </div>
-  <div class="form-group">
-    <label>血清肌酐（μmol/L）：</label>
-    <input type="number" id="creatinine" min="20" max="300" value="70" step="0.1" required>
-  </div>
-  <div class="form-group">
-    <label>γ-GT（U/L）：</label>
-    <input type="number" id="ggt" min="5" max="500" value="30" step="0.1" required>
-  </div>
-  <div class="form-group">
-    <label>游离脂肪酸（mmol/L）：</label>
-    <input type="number" id="ffa" min="0.1" max="2.0" value="0.5" step="0.01" required>
-  </div>
-  <div class="form-group">
-    <label>T5（nmol/L）：</label>
-    <input type="number" id="t5" min="0.1" max="1.0" value="0.4" step="0.001" required>
-  </div>
+    <fieldset style="border: 2px solid #e74c3c; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #fdf6f6;">
+      <legend style="font-weight: bold; color: #c0392b; font-size: 16px;">🌿 中医证候</legend>
+      <div class="form-group"> <label>肝（是=1，否=0）：</label> <select id="gan"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>肾（是=1，否=0）：</label> <select id="shen"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>胃（是=1，否=0）：</label> <select id="wei"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>阳亢（是=1，否=0）：</label> <select id="yangkang"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>实热（是=1，否=0）：</label> <select id="shire"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>血瘀（是=1，否=0）：</label> <select id="xueyu"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>气滞（是=1，否=0）：</label> <select id="qizhi"><option value="0">否</option><option value="1">是</option></select> </div>
+      <div class="form-group"> <label>阴虚（是=1，否=0）：</label> <select id="yinxu"><option value="0">否</option><option value="1">是</option></select> </div>
+    </fieldset>
 
-  <button type="button" onclick="calculateRisk()">计算风险评分</button>
-  <button type="button" onclick="showHistory()">查看历史记录</button>
-</form>
+    <fieldset style="border: 2px solid #2ecc71; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #f6fdf9;">
+      <legend style="font-weight: bold; color: #27ae60; font-size: 16px;">📈 脉图参数</legend>
+      <div class="form-group"> <label>T5：</label> <input type="number" id="t5" min="0.1" max="1.0" value="0.1" step="0.001" required> </div>
+    </fieldset>
 
-<div id="result"></div>
-<div id="chartContainer"><canvas id="contributionChart"></canvas></div>
-<div id="exportSection">
-  <button onclick="exportPDF()">导出PDF报告</button>
+    <fieldset style="border: 2px solid #f39c12; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #fffdf6;">
+      <legend style="font-weight: bold; color: #d35400; font-size: 16px;">🩸 血生化指标</legend>
+      <div class="form-group"> <label>血清肌酐（μmol/L）：</label> <input type="number" id="creatinine" min="20" max="300" value="20" step="0.1" required> </div>
+      <div class="form-group"> <label>游离脂肪酸（mmol/L）：</label> <input type="number" id="ffa" min="0.1" max="2.0" value="0.1" step="0.01" required> </div>
+    </fieldset>
+
+    <button type="button" onclick="calculateRisk()">计算风险评分</button>
+    <button type="button" onclick="showHistory()">查看历史记录</button>
+  </form>
+
+  <div id="result"></div>
+  <div id="chartContainer"><canvas id="contributionChart"></canvas></div>
+  <div id="historyChartContainer"><canvas id="historyChart"></canvas></div>
+  <div id="exportSection">
+    <button onclick="exportPDF()">导出PDF报告</button>
+  </div>
+</div>
+
+<div id="self" class="module">
+  <h2>🩺 高血压自我管理</h2>
+  <p>请选择日期，记录您的健康数据（默认今天）：</p>
+  <div class="form-group">
+    <label>记录日期：</label>
+    <input type="date" id="recordDate" style="width:150px;">
+  </div>
+  <button onclick="loadTodayData()" style="margin-left:10px;">查看今日记录</button>
+
+  <h3>1. 血压与心率</h3>
+  <div class="form-group">
+    <label>收缩压（mmHg）：</label>
+    <input type="number" id="sbp" min="70" max="250" placeholder="如 120">
+  </div>
+  <div class="form-group">
+    <label>舒张压（mmHg）：</label>
+    <input type="number" id="dbp" min="40" max="150" placeholder="如 80">
+  </div>
+  <div class="form-group">
+    <label>心率（次/分）：</label>
+    <input type="number" id="hr" min="40" max="150" placeholder="可选">
+  </div>
+  <button type="button" onclick="saveRecord('bp')">保存血压</button>
+
+  <h3>2. 今日用药</h3>
+  <div class="form-group">
+    <label>药品名称：</label>
+    <input type="text" id="medicineName" placeholder="如 氨氯地平" style="width:150px;">
+  </div>
+  <div class="form-group">
+    <label>是否服用：</label>
+    <label><input type="radio" name="taken" value="1"> 是</label>
+    <label><input type="radio" name="taken" value="0" style="margin-left:10px;"> 否</label>
+  </div>
+  <button type="button" onclick="saveRecord('med')">保存用药</button>
+
+  <h3>3. 今日运动</h3>
+  <div class="form-group">
+    <label>运动类型：</label>
+    <select id="exerciseType" style="width:150px;">
+      <option value="散步">散步</option>
+      <option value="快走">快走</option>
+      <option value="太极拳">太极拳</option>
+      <option value="八段锦">八段锦</option>
+      <option value="游泳">游泳</option>
+      <option value="其他">其他</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>持续时间（分钟）：</label>
+    <input type="number" id="exerciseMin" min="0" max="180" value="30">
+  </div>
+  <button type="button" onclick="saveRecord('exercise')">保存运动</button>
+
+  <h3>4. 生活方式</h3>
+  <div class="form-group">
+    <label>饮食情况：</label>
+    <select id="diet" style="width:150px;">
+      <option value="清淡">清淡（少盐少油）</option>
+      <option value="一般">一般</option>
+      <option value="重口味">重口味/高盐</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>睡眠质量：</label>
+    <select id="sleep" style="width:150px;">
+      <option value="好">好（≥7小时，无中断）</option>
+      <option value="一般">一般</option>
+      <option value="差">差（失眠/早醒）</option>
+    </select>
+  </div>
+  <button type="button" onclick="saveRecord('lifestyle')">保存生活方式</button>
+
+  <h3>5. 体重与腰围</h3>
+  <div class="form-group">
+    <label>体重（kg）：</label>
+    <input type="number" id="weight" min="30" max="150" step="0.1" placeholder="如 68.5">
+  </div>
+  <div class="form-group">
+    <label>腰围（cm）：</label>
+    <input type="number" id="waist" min="50" max="150" step="0.5" placeholder="可选">
+  </div>
+  <button type="button" onclick="saveRecord('body')">保存体重</button>
+
+  <h3>6. 复诊计划</h3>
+  <div class="form-group">
+    <label>下次复诊日期：</label>
+    <input type="date" id="nextVisit">
+  </div>
+  <button type="button" onclick="saveNextVisit()">设置提醒</button>
+  <div id="visitReminder" style="color:#e74c3c; margin-top:5px;"></div>
+
+  <h3>7. 中医体质自测（建议每月1次）</h3>
+  <p style="font-size:0.9em; color:#555;">请根据最近1个月情况勾选符合的描述：</p>
+  <div id="constitutionForm" style="text-align:left; margin:10px 0;">
+    <label><input type="checkbox" value="yinxu"> 手足心热、口干咽燥（阴虚）</label><br>
+    <label><input type="checkbox" value="yangkang"> 头晕头痛、面红目赤（阳亢）</label><br>
+    <label><input type="checkbox" value="xueyu"> 舌有瘀斑、刺痛固定（血瘀）</label><br>
+    <label><input type="checkbox" value="qizhi"> 胸闷叹气、情绪抑郁（气滞）</label><br>
+    <label><input type="checkbox" value="tanshi"> 身重困倦、痰多苔腻（痰湿）</label><br>
+    <label><input type="checkbox" value="qixu"> 气短乏力、易出汗（气虚）</label><br>
+    <label><input type="checkbox" value="yangxu"> 畏寒肢冷、小便清长（阳虚）</label><br>
+    <label><input type="checkbox" value="shiping"> 无明显不适（平和质）</label><br>
+  </div>
+  <button type="button" onclick="saveConstitution()">保存体质测评</button>
+
+  <h3>📊 今日健康概览</h3>
+  <div id="dailySummary" style="background:#f8f9fa; padding:15px; border-radius:6px; margin-top:10px;"></div>
+
+  <button onclick="clearAllSelfData()" style="background:#e74c3c; margin-top:20px;">清空所有记录</button>
+</div>
+
+<div id="resources" class="module">
+  <h2>📚 高血压健康教育资源</h2>
+  <h3>🔗 官方指南与平台</h3>
+  <ul>
+    <li><a href="http://www.nhc.gov.cn/" target="_blank">国家卫生健康委员会</a></li>
+    <li><a href="https://www.cacm.org.cn/" target="_blank">中华中医药学会</a></li>
+    <li><a href="https://www.chinacdc.cn/" target="_blank">中国疾控中心</a></li>
+    <li><a href="https://www.who.int/zh" target="_blank">世界卫生组织（WHO）</a></li>
+  </ul>
+  <button onclick="showSection('assessment')" style="margin-top:20px;">返回风险评估</button>
 </div>
 
 <script>
 let myChart = null;
+let historyChart = null;
+let fullHistory = [];
+
+function showSection(sectionId) {
+  document.querySelectorAll('.module').forEach(div => div.classList.remove('active'));
+  document.getElementById(sectionId).classList.add('active');
+  if (sectionId === 'self') {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('recordDate').value = today;
+    loadTodayData();
+  }
+}
+
+const modal = document.getElementById("detailModal");
+const span = document.getElementsByClassName("close-modal")[0];
+span.onclick = function() { modal.style.display = "none"; }
+window.onclick = function(event) { if (event.target == modal) modal.style.display = "none"; }
+
+function getStorageKey(date, type) { return `hypertension_${date}_${type}`; }
+function saveRecord(type) {
+  const date = document.getElementById('recordDate').value;
+  if (!date) { alert('请选择日期'); return; }
+  let data;
+  switch (type) {
+    case 'bp':
+      data = { sbp: document.getElementById('sbp').value, dbp: document.getElementById('dbp').value, hr: document.getElementById('hr').value || null };
+      break;
+    case 'med':
+      const taken = document.querySelector('input[name="taken"]:checked');
+      data = { medicine: document.getElementById('medicineName').value.trim(), taken: taken ? taken.value : '0' };
+      break;
+    case 'exercise':
+      data = { type: document.getElementById('exerciseType').value, minutes: document.getElementById('exerciseMin').value };
+      break;
+    case 'lifestyle':
+      data = { diet: document.getElementById('diet').value, sleep: document.getElementById('sleep').value };
+      break;
+    case 'body':
+      data = { weight: document.getElementById('weight').value, waist: document.getElementById('waist').value || null };
+      break;
+    default: return;
+  }
+  localStorage.setItem(getStorageKey(date, type), JSON.stringify(data));
+  alert('✅ 已保存');
+  loadTodayData();
+}
+
+function saveNextVisit() {
+  const date = document.getElementById('nextVisit').value;
+  if (date) {
+    localStorage.setItem('hypertension_next_visit', date);
+    updateVisitReminder();
+    alert('✅ 复诊提醒已设置');
+  }
+}
+
+function saveConstitution() {
+  const checkboxes = document.querySelectorAll('#constitutionForm input:checked');
+  const types = Array.from(checkboxes).map(cb => cb.value);
+  const date = new Date().toISOString().split('T')[0];
+  localStorage.setItem(`hypertension_constitution_${date.substring(0,7)}`, JSON.stringify(types));
+  alert('✅ 体质测评已保存');
+}
+
+function loadTodayData() {
+  const date = document.getElementById('recordDate').value;
+  if (!date) return;
+  loadDailySummary(date);
+}
+
+function loadDailySummary(date) {
+  let summary = '<ul>';
+  let hasData = false;
+  const bp = JSON.parse(localStorage.getItem(getStorageKey(date, 'bp')) || '{}');
+  if (bp.sbp) { hasData = true; summary += `<li>血压：${bp.sbp}/${bp.dbp} mmHg${bp.hr ? `，心率 ${bp.hr} 次/分` : ''}</li>`; }
+  const med = JSON.parse(localStorage.getItem(getStorageKey(date, 'med')) || '{}');
+  if (med.medicine) { hasData = true; summary += `<li>用药：${med.medicine}（${med.taken === '1' ? '已服' : '未服'}）</li>`; }
+  const ex = JSON.parse(localStorage.getItem(getStorageKey(date, 'exercise')) || '{}');
+  if (ex.type) { hasData = true; summary += `<li>运动：${ex.type} ${ex.minutes} 分钟</li>`; }
+  const ls = JSON.parse(localStorage.getItem(getStorageKey(date, 'lifestyle')) || '{}');
+  if (ls.diet) { hasData = true; summary += `<li>饮食：${ls.diet}；睡眠：${ls.sleep}</li>`; }
+  const body = JSON.parse(localStorage.getItem(getStorageKey(date, 'body')) || '{}');
+  if (body.weight) { hasData = true; summary += `<li>体重：${body.weight} kg${body.waist ? `，腰围：${body.waist} cm` : ''}</li>`; }
+  summary = hasData ? summary + '</ul>' : '<p>今日暂无记录</p>';
+  document.getElementById('dailySummary').innerHTML = summary;
+}
+
+function updateVisitReminder() {
+  const next = localStorage.getItem('hypertension_next_visit');
+  const el = document.getElementById('visitReminder');
+  if (!next) { el.textContent = ''; return; }
+  const diff = Math.ceil((new Date(next) - new Date()) / (1000*60*60*24));
+  if (diff > 0) el.textContent = `📌 下次复诊：${next}（还有 ${diff} 天）`;
+  else if (diff === 0) el.textContent = '❗ 今天复诊！';
+  else el.textContent = `⚠️ 已过期 ${-diff} 天，请尽快预约！`;
+}
+
+function clearAllSelfData() {
+  if (!confirm('确定清空所有自我管理记录？此操作不可恢复！')) return;
+  Object.keys(localStorage).forEach(key => { if (key.startsWith('hypertension_')) localStorage.removeItem(key); });
+  document.getElementById('dailySummary').innerHTML = '<p>记录已清空</p>';
+  document.getElementById('visitReminder').textContent = '';
+  alert('🗑️ 所有记录已清除');
+}
+
+updateVisitReminder();
+
+function getAllScores() {
+  const history = JSON.parse(localStorage.getItem('riskHistory') || '[]');
+  return history.map(item => item.total).sort((a, b) => a - b);
+}
+
+function getTertileThresholds() {
+  const scores = getAllScores();
+  if (scores.length < 3) {
+    return { low: -3.0, high: -1.5 };
+  }
+  const n = scores.length;
+  const t1 = Math.floor(n * 0.33);
+  const t2 = Math.floor(n * 0.67);
+  return { low: scores[t1], high: scores[t2] };
+}
 
 function calculateRisk() {
-  // === 获取姓名和编号（不参与计算）===
   const name = document.getElementById('name').value.trim();
-  const number = document.getElementById('number').value.trim();
-  if (!name) {
-    alert('请输入姓名');
-    return;
-  }
+  if (!name) { alert('请输入姓名'); return; }
 
-  // === 1. 读取原始输入值 ===
-  const rawInputs = {
+  const inputs = {
     gan: parseFloat(document.getElementById("gan").value),
     shen: parseFloat(document.getElementById("shen").value),
     wei: parseFloat(document.getElementById("wei").value),
     yangkang: parseFloat(document.getElementById("yangkang").value),
+    shire: parseFloat(document.getElementById("shire").value),
     xueyu: parseFloat(document.getElementById("xueyu").value),
     qizhi: parseFloat(document.getElementById("qizhi").value),
     yinxu: parseFloat(document.getElementById("yinxu").value),
     age: parseFloat(document.getElementById("age").value),
     creatinine: parseFloat(document.getElementById("creatinine").value),
-    ggt: parseFloat(document.getElementById("ggt").value),
     ffa: parseFloat(document.getElementById("ffa").value),
     t5: parseFloat(document.getElementById("t5").value)
   };
 
-  // === 2. 应用上限截断（关键逻辑）===
-  const inputs = {
-    ...rawInputs,
-    creatinine: Math.min(rawInputs.creatinine, 400),
-    ggt: Math.min(rawInputs.ggt, 200),
-    ffa: Math.min(rawInputs.ffa, 2.4),
-    t5: Math.min(rawInputs.t5, 1.0)
-  };
-
   const coeffs = {
-    intercept: -4.3,
-    gan: 0.85,
-    shen: 0.62,
-    wei: 0.41,
-    yangkang: 0.53,
-    xueyu: 0.77,
-    qizhi: 0.69,
-    yinxu: 0.58,
-    age: 0.021,
-    creatinine: 0.008,
-    ggt: 0.003,
-    ffa: 0.42,
-    t5: -1.2
+    intercept: -4.3, gan:0.85, shen:0.62, wei:0.41, yangkang:0.53, shire:0.48,
+    xueyu:0.77, qizhi:0.69, yinxu:0.58, age:0.021, creatinine:0.008, ffa:0.42, t5:-1.2
   };
 
   let total = coeffs.intercept;
@@ -225,247 +439,254 @@ function calculateRisk() {
     total += contributions[key];
   }
 
-  let level, className, message, advice;
-  if (total < -1.0) {
+  const thresholds = getTertileThresholds();
+  let level, className, message;
+
+  if (total <= thresholds.low) {
     level = "低风险";
     className = "low";
-    message = "当前高血压风险较低。";
-    advice = `
-      <h3>✅ 健康管理建议（低风险）</h3>
-      <ul>
-        <li>保持规律作息，避免熬夜，顺应四时养生。</li>
-        <li>饮食清淡，少盐少油，多食新鲜蔬果。</li>
-        <li>每日适度运动（如太极拳、八段锦、散步）30分钟。</li>
-        <li>调畅情志，避免长期精神紧张或情绪波动。</li>
-        <li>每年体检一次，关注血压、血脂、肝肾功能。</li>
-      </ul>
-    `;
-  } else if (total < 1.0) {
+    message = `评分 ${total.toFixed(2)}（低风险）`;
+  } else if (total <= thresholds.high) {
     level = "中风险";
     className = "medium";
-    message = "存在中度高血压风险，需引起重视。";
-    advice = `
-      <h3>⚠️ 健康管理建议（中风险）</h3>
-      <ul>
-        <li>严格限盐（每日&lt;5克），减少加工食品摄入。</li>
-        <li>针对证候调理：如见“肝阳上亢”，可饮菊花决明子茶；“阴虚”者可服枸杞麦冬粥。</li>
-        <li>坚持每日有氧运动（快走、游泳）≥30分钟，每周5天。</li>
-        <li>监测家庭血压（早晚各一次），记录变化。</li>
-        <li>建议每3-6个月就诊中医科，进行体质辨识与调方。</li>
-      </ul>
-    `;
+    message = `评分 ${total.toFixed(2)}（中风险）`;
   } else {
     level = "高风险";
     className = "high";
-    message = "综合评分为高风险，请尽快就医评估！";
-    advice = `
-      <h3>🚨 健康管理建议（高风险）</h3>
-      <ul>
-        <li><strong>立即就诊心内科或中医内科</strong>，评估是否需药物干预。</li>
-        <li>严格遵医嘱服药，不可自行停药或更改剂量。</li>
-        <li>中医辨证施治：若属“肝阳上亢”，治宜平肝潜阳；“痰瘀互结”者，当化痰祛瘀通络。</li>
-        <li>绝对戒烟限酒，避免剧烈情绪波动。</li>
-        <li>每日监测血压并记录，复诊时提供给医生参考。</li>
-        <li>避免突然用力、屏气、寒冷刺激等诱发因素。</li>
-      </ul>
-    `;
+    message = `评分 ${total.toFixed(2)}（高风险）`;
   }
 
-  // === 生成截断警告提示 ===
-  let warnings = [];
-  if (rawInputs.creatinine > 400) warnings.push("血清肌酐已按上限400计算");
-  if (rawInputs.ggt > 200) warnings.push("γ-GT已按上限200计算");
-  if (rawInputs.ffa > 2.4) warnings.push("游离脂肪酸已按上限2.4计算");
-  if (rawInputs.t5 > 1.0) warnings.push("T5已按上限1.0计算");
-  const warningHtml = warnings.length > 0 
-    ? `<p style="color:#e67e22; font-size:0.95em; margin:8px 0;">⚠️ ${warnings.join('；')}</p>` 
-    : '';
+  const advice = {
+    "低风险": "<h3>✅ 健康管理建议（低风险）</h3><ul><li>保持规律作息</li><li>饮食清淡</li><li>适度运动</li></ul>",
+    "中风险": "<h3>⚠️ 健康管理建议（中风险）</h3><ul><li>低盐饮食</li><li>规律运动</li><li>定期监测血压</li></ul>",
+    "高风险": "<h3>🚨 健康管理建议（高风险）</h3><ul><li>尽快就医</li><li>遵医嘱规范用药</li><li>戒烟限酒、控制情绪</li></ul>"
+  }[level];
 
   const resultHtml = `
-    <div>姓名：<strong>${name}</strong> ${number ? `（编号：${number}）` : ''}</div>
+    <div>姓名：<strong>${name}</strong></div>
     <div>风险评分：<strong>${total.toFixed(2)}</strong></div>
     <div>风险等级：<strong>${level}</strong></div>
     <div>${message}</div>
-    ${warningHtml}
     <div style="margin-top:15px; text-align:left;">${advice}</div>
   `;
-  document.getElementById("result").innerHTML = resultHtml;
-  document.getElementById("result").className = className;
-  document.getElementById("result").style.display = "block";
 
-  const labels = ["肝", "肾", "胃", "阳亢", "血瘀", "气滞", "阴虚", "年龄", "肌酐", "γ-GT", "游离脂肪酸", "T5"];
+  const res = document.getElementById("result");
+  res.innerHTML = resultHtml;
+  res.className = className;
+  res.style.display = "block";
+
+  const labels = ["肝","肾","胃","阳亢","实热","血瘀","气滞","阴虚","年龄","肌酐","游离脂肪酸","T5"];
   const values = [
     contributions.gan, contributions.shen, contributions.wei, contributions.yangkang,
-    contributions.xueyu, contributions.qizhi, contributions.yinxu,
-    contributions.age, contributions.creatinine, contributions.ggt,
-    contributions.ffa, contributions.t5
+    contributions.shire, contributions.xueyu, contributions.qizhi, contributions.yinxu,
+    contributions.age, contributions.creatinine, contributions.ffa, contributions.t5
   ];
 
   const ctx = document.getElementById('contributionChart').getContext('2d');
   if (myChart) myChart.destroy();
   myChart = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '各因素对风险评分的贡献',
-        data: values,
-        backgroundColor: values.map(v => v > 0 ? '#e74c3c' : '#3498db')
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, title: { display: true, text: '贡献分' } }
-      }
-    }
+    data: { labels, datasets: [{ label: '贡献度', data: values, backgroundColor: values.map(v=>v>0?'#e74c3c':'#3498db') }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
   });
 
   document.getElementById("chartContainer").style.display = "block";
+  document.getElementById("historyChartContainer").style.display = "none";
   document.getElementById("exportSection").style.display = "block";
 
-  // ✅ 保存到后端（包含姓名和编号）
-  saveToHistory({
-    name: name,
-    number: number,
-    inputs: inputs,
-    rawInputs: rawInputs, // 可选：保存原始值用于审计
-    total: total,
-    level: level,
-    resultHtml: resultHtml,
-    contributions: contributions
+  saveToHistory({ name, inputs, total, level, resultHtml, lowThreshold: thresholds.low, highThreshold: thresholds.high });
+}
+
+function saveToHistory(data) {
+  let history = JSON.parse(localStorage.getItem('riskHistory') || '[]');
+  const fullTimeStr = new Date().toLocaleString();
+  history.unshift({ ...data, time: fullTimeStr });
+  if (history.length > 50) history = history.slice(0, 50);
+  localStorage.setItem('riskHistory', JSON.stringify(history));
+}
+
+function showHistory() {
+  const history = JSON.parse(localStorage.getItem('riskHistory') || '[]');
+  if (history.length === 0) { alert('暂无历史记录'); return; }
+  fullHistory = history;
+
+  let html = '<h3>历史评估记录</h3><ul style="max-height:220px;overflow-y:auto;">';
+  history.forEach((item, i) => {
+    html += `<li><b>${item.time}</b> | ${item.name} | 评分：${item.total.toFixed(2)} | ${item.level}</li>`;
   });
-}
+  html += '</ul><h3>📈 风险评分变化趋势（含风险警戒线）</h3>';
 
-// ========== 后端交互函数 ==========
-async function saveToHistory(record) {
-  try {
-    const response = await fetch('/api/history', { // ← 改为相对路径，支持线上部署
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(record)
-    });
-    if (!response.ok) throw new Error('保存失败');
-    console.log('✅ 评估记录已保存');
-  } catch (err) {
-    console.warn('⚠️ 未连接到服务器，仅本地显示');
-  }
-}
+  const reversedHistory = [...history].reverse();
+  const chartLabels = reversedHistory.map(item => item.time.split(' ')[0]);
+  const scores = reversedHistory.map(item => parseFloat(item.total));
+  const levels = reversedHistory.map(item => item.level);
 
-async function showHistory(page = 1) {
-  try {
-    const response = await fetch(`/api/history?page=${page}&limit=10`); // ← 相对路径
-    if (!response.ok) throw new Error('获取失败');
-    const { records, totalPages } = await response.json();
-
-    let listHtml = '<h3>历史评估记录</h3>';
-    if (records.length === 0) {
-      listHtml += '<p>暂无记录</p>';
+  const pointColors = [];
+  const pointBgColors = [];
+  levels.forEach(level => {
+    if (level === '低风险') {
+      pointColors.push('#059669');
+      pointBgColors.push('#a7f3d0');
+    } else if (level === '中风险') {
+      pointColors.push('#d97706');
+      pointBgColors.push('#fde68a');
     } else {
-      records.forEach(rec => {
-        const time = new Date(rec.timestamp).toLocaleString();
-        const displayName = rec.name || '未命名';
-        const displayNumber = rec.number ? `（编号：${rec.number}）` : '';
-        listHtml += `
-          <div style="border:1px solid #ddd; padding:12px; margin:10px 0; border-radius:4px;">
-            <div><strong>${displayName}${displayNumber} | ${rec.level} | ${time}</strong></div>
-            <div>评分: ${typeof rec.total === 'number' ? rec.total.toFixed(2) : 'N/A'}</div>
-            <button onclick="loadRecord('${rec._id}')" style="margin:5px;">加载</button>
-            <button onclick="deleteRecord('${rec._id}')" style="margin:5px;background:#e74c3c;">删除</button>
-          </div>
-        `;
-      });
-
-      let pagination = '';
-      for (let i = 1; i <= totalPages; i++) {
-        pagination += `<button onclick="showHistory(${i})" style="margin:3px;padding:4px;">${i}</button>`;
-      }
-      listHtml += `<div style="margin-top:15px;">${pagination}</div>`;
+      pointColors.push('#dc2626');
+      pointBgColors.push('#fecaca');
     }
+  });
 
-    const modal = document.createElement('div');
-    modal.id = 'historyModal';
-    modal.innerHTML = `
-      <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;display:flex;justify-content:center;align-items:center;">
-        <div style="background:white;padding:20px;width:90%;max-width:600px;max-height:80vh;overflow:auto;border-radius:8px;">
-          ${listHtml}
-          <button onclick="document.getElementById('historyModal').remove()" style="margin-top:15px;">关闭</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  } catch (error) {
-    alert('❌ 无法连接服务器，请确保后端正在运行（node server.js）');
-  }
+  const thresholds = getTertileThresholds();
+  const lowLine = thresholds.low;
+  const highLine = thresholds.high;
+
+  const ctxHistory = document.getElementById('historyChart').getContext('2d');
+  if (historyChart) historyChart.destroy();
+
+  // 只保留最近5条数据
+  const displayCount = 5;
+  const slicedHistory = reversedHistory.slice(-displayCount);
+  const displayLabels = slicedHistory.map(item => item.time.split(' ')[0]);
+  const displayScores = slicedHistory.map(item => parseFloat(item.total));
+  const displayLevels = slicedHistory.map(item => item.level);
+
+  const displayPointColors = [];
+  const displayPointBgColors = [];
+  displayLevels.forEach(level => {
+    if (level === '低风险') {
+      displayPointColors.push('#059669');
+      displayPointBgColors.push('#a7f3d0');
+    } else if (level === '中风险') {
+      displayPointColors.push('#d97706');
+      displayPointBgColors.push('#fde68a');
+    } else {
+      displayPointColors.push('#dc2626');
+      displayPointBgColors.push('#fecaca');
+    }
+  });
+
+  historyChart = new Chart(ctxHistory, {
+    type: 'line',
+    data: {
+      labels: displayLabels,
+      datasets: [
+        {
+          label: '风险评分',
+          data: displayScores,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(59, 130, 246, 0.15)',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 8,
+          pointHoverRadius: 11,
+          pointBackgroundColor: displayPointBgColors,
+          pointBorderColor: displayPointColors,
+          pointBorderWidth: 3,
+          borderWidth: 3
+        },
+        {
+          label: '低风险线',
+          data: Array(displayLabels.length).fill(lowLine),
+          borderColor: '#059669',
+          borderWidth: 2,
+          borderDash: [5,5],
+          pointRadius: 0,
+          fill: false
+        },
+        {
+          label: '高风险线',
+          data: Array(displayLabels.length).fill(highLine),
+          borderColor: '#dc2626',
+          borderWidth: 2,
+          borderDash: [5,5],
+          pointRadius: 0,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { font: { size:14, family:'Microsoft YaHei' } } },
+        tooltip: {
+          backgroundColor: 'rgba(17, 24, 39, 0.85)',
+          padding: 10,
+          cornerRadius: 6,
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.datasetIndex === 0) {
+                const it = slicedHistory[ctx.dataIndex];
+                return `${it.name}｜${it.total.toFixed(2)}｜${it.level}`;
+              } else if (ctx.datasetIndex === 1) {
+                return `低风险阈值：${lowLine.toFixed(2)}`;
+              } else {
+                return `高风险阈值：${highLine.toFixed(2)}`;
+              }
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size:12 } } },
+        y: { beginAtZero: false, grid: { color: 'rgba(200,200,200,0.2)' }, ticks: { font: { size:12 } } }
+      },
+      onClick: (e, els) => {
+        if (els.length>0 && els[0].datasetIndex === 0) {
+          showDetailModal(slicedHistory[els[0].index]);
+        }
+      }
+    }
+  });
+
+  const res = document.getElementById('result');
+  res.innerHTML = html;
+  res.className = '';
+  res.style.display = 'block';
+  document.getElementById('chartContainer').style.display = 'none';
+  document.getElementById('historyChartContainer').style.display = 'block';
+  document.getElementById('exportSection').style.display = 'none';
 }
 
-async function loadRecord(id) {
-  try {
-    const response = await fetch(`/api/history/${id}`); // ← 相对路径
-    if (!response.ok) throw new Error('加载失败');
-    const record = await response.json();
-
-    // 回填姓名和编号
-    if (record.name) document.getElementById('name').value = record.name;
-    if (record.number) document.getElementById('number').value = record.number;
-
-    // 回填其他字段
-    const inputs = record.inputs || record.rawInputs || {};
-    ['gan','shen','wei','yangkang','xueyu','qizhi','yinxu','age','creatinine','ggt','ffa','t5'].forEach(key => {
-      const el = document.getElementById(key);
-      if (el && inputs[key] !== undefined) el.value = inputs[key];
-    });
-
-    calculateRisk(); // 重新计算
-
-    const modal = document.getElementById('historyModal');
-    if (modal) modal.remove();
-  } catch (error) {
-    alert('❌ 加载失败');
-  }
+function showDetailModal(item) {
+  document.getElementById('modalTitle').textContent = `${item.time} - ${item.name} 评估详情`;
+  let table = `
+  <table class="detail-table">
+    <tr><th>项目</th><th>结果</th></tr>
+    <tr><td>姓名</td><td>${item.name}</td></tr>
+    <tr><td>评估时间</td><td>${item.time}</td></tr>
+    <tr><td>风险评分</td><td>${item.total.toFixed(2)}</td></tr>
+    <tr><td>风险等级</td><td>${item.level}</td></tr>
+    <tr><td>年龄</td><td>${item.inputs.age} 岁</td></tr>
+    <tr><td>肝</td><td>${item.inputs.gan === 1 ? '是' : '否'}</td></tr>
+    <tr><td>肾</td><td>${item.inputs.shen === 1 ? '是' : '否'}</td></tr>
+    <tr><td>胃</td><td>${item.inputs.wei === 1 ? '是' : '否'}</td></tr>
+    <tr><td>阳亢</td><td>${item.inputs.yangkang === 1 ? '是' : '否'}</td></tr>
+    <tr><td>实热</td><td>${item.inputs.shire === 1 ? '是' : '否'}</td></tr>
+    <tr><td>血瘀</td><td>${item.inputs.xueyu === 1 ? '是' : '否'}</td></tr>
+    <tr><td>气滞</td><td>${item.inputs.qizhi === 1 ? '是' : '否'}</td></tr>
+    <tr><td>阴虚</td><td>${item.inputs.yinxu === 1 ? '是' : '否'}</td></tr>
+    <tr><td>T5</td><td>${item.inputs.t5}</td></tr>
+    <tr><td>血清肌酐</td><td>${item.inputs.creatinine} μmol/L</td></tr>
+    <tr><td>游离脂肪酸</td><td>${item.inputs.ffa} mmol/L</td></tr>
+  </table>`;
+  document.getElementById('modalContent').innerHTML = table + item.resultHtml;
+  modal.style.display = "block";
 }
 
-async function deleteRecord(id) {
-  if (!confirm('确定删除此评估记录？')) return;
-  try {
-    const response = await fetch(`/api/history/${id}`, { method: 'DELETE' }); // ← 相对路径
-    if (!response.ok) throw new Error('删除失败');
-    const modal = document.getElementById('historyModal');
-    if (modal) modal.remove();
-    showHistory();
-  } catch (error) {
-    alert('❌ 删除失败');
-  }
-}
-
-// ========== PDF 导出 ==========
 async function exportPDF() {
   const { jsPDF } = window.jspdf;
-  const element = document.createElement('div');
-  element.innerHTML = `
-    <h2 style="text-align:center;font-size:20px;">高血压风险评估报告</h2>
-    ${document.getElementById("result").outerHTML}
-    <p style="text-align:center;margin-top:20px;font-size:12px;color:#555;">
-      注：本报告基于中医证候与生化指标联合预测模型生成。
-    </p>
-  `;
-  element.style.padding = "20px";
-  element.style.fontFamily = "'Microsoft YaHei', sans-serif";
-  element.style.width = "210mm";
-  document.body.appendChild(element);
-
-  const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const width = pdf.internal.pageSize.getWidth();
-  const height = (canvas.height * width) / canvas.width;
-  pdf.addImage(imgData, 'PNG', 0, 0, width, Math.min(height, 297));
-  pdf.save('高血压风险评估报告.pdf');
-
-  document.body.removeChild(element);
+  const el = document.createElement('div');
+  el.innerHTML = `<h2 style="text-align:center;">高血压风险评估报告</h2>${document.getElementById("result").outerHTML}`;
+  el.style.padding = "20px";
+  document.body.appendChild(el);
+  const canvas = await html2canvas(el, { scale:2 });
+  const w = pdf.internal.pageSize.getWidth();
+  const h = (canvas.height * w) / canvas.width;
+  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0,0,w,h);
+  pdf.save('高血压报告.pdf');
+  document.body.removeChild(el);
 }
 </script>
-
 </body>
 </html>
